@@ -1,11 +1,45 @@
+import uvicorn
+import time
+import logging
 from fastapi import FastAPI
-from api.routes import health_assistant
+from models.meditron_model import run_meditron_health_assistant  # Import your model function
 
-app = FastAPI(title="Health Assistant API", description="An API for predictive health diagnostics", version="1.0")
+# Initialize FastAPI app
+app = FastAPI()
 
-# Include routes
-app.include_router(health_assistant.router, prefix="/health", tags=["Health Assistant"])
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 @app.get("/")
-def root():
+def read_root():
     return {"message": "Health Assistant API is running!"}
+
+@app.post("/predict/")
+async def get_health_advice(sensor_data: dict = None, symptoms: str = None, question: str = None):
+    """
+    API endpoint to get health advice from the Meditron model.
+    - Accepts sensor data, symptoms, or a question.
+    - Returns model-generated health advice.
+    """
+    logging.info("Received request, processing...")
+
+    # Indicate the model is "thinking"
+    start_time = time.time()
+    response_message = "Processing request... Please wait."
+
+    # Call the Meditron model
+    health_advice = run_meditron_health_assistant(sensor_data, symptoms, question)
+    
+    end_time = time.time()
+    processing_time = round(end_time - start_time, 2)
+
+    logging.info(f"Model finished processing in {processing_time} seconds.")
+
+    return {
+        "status": "success",
+        "processing_time": f"{processing_time} seconds",
+        "response": health_advice
+    }
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
